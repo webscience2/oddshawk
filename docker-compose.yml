@@ -1,0 +1,33 @@
+services:
+  scanner:
+    build: .
+    container_name: oddshawk-scanner
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DB_PATH=/app/data/oddshawk.db
+      - LOG_PATH=/app/data/oddshawk.log
+    volumes:
+      - oddshawk-data:/app/data
+      - ./betfair-client.crt:/app/betfair-client.crt:ro
+      - ./betfair-client.key:/app/betfair-client.key:ro
+    command: ["python3", "main.py"]
+
+  dashboard:
+    build: .
+    container_name: oddshawk-dashboard
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DB_PATH=/app/data/oddshawk.db
+      - LOG_PATH=/app/data/oddshawk.log
+    ports:
+      - "5050:5050"
+    volumes:
+      - oddshawk-data:/app/data
+      - ./betfair-client.crt:/app/betfair-client.crt:ro
+      - ./betfair-client.key:/app/betfair-client.key:ro
+    command: ["python3", "dashboard.py"]
+
+volumes:
+  oddshawk-data:

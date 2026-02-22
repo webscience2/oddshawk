@@ -398,7 +398,9 @@ def process_event(conn, sport: str, event: dict, now_iso: str,
             best_lay = lay_prices[0][0] if lay_prices else None
             lay_liq = sum(size for _, size in lay_prices)
 
-            if best_back <= 1.0:
+            # Skip placeholder/garbage prices — back < 1.10 means 90%+
+            # implied probability, any "edge" vs soft books is noise
+            if best_back < 1.10:
                 continue
 
             raw_implied = 1.0 / best_back
@@ -455,7 +457,8 @@ def process_event(conn, sport: str, event: dict, now_iso: str,
             name = outcome["name"]
             back_price = outcome["price"]
             back_liq = outcome.get("bet_limit")
-            if back_price <= 1.0:
+            # Skip placeholder/garbage prices
+            if back_price < 1.10:
                 continue
 
             raw_implied = 1.0 / back_price
@@ -594,6 +597,23 @@ def process_event(conn, sport: str, event: dict, now_iso: str,
                     sport, event_name, name, decimal_odds, lay_str, liq_str,
                     edge_pct * 100, arb["guaranteed_profit"], bm_key,
                 )
+
+                # Send real-time notification
+                if config.TELEGRAM_ENABLED:
+                    from notify import send_signal_alert
+                    send_signal_alert(
+                        sport=sport,
+                        event_name=event_name,
+                        outcome=name,
+                        bookmaker=bm_key,
+                        soft_odds=decimal_odds,
+                        bf_back=bf_back,
+                        bf_lay=bf_lay,
+                        edge_pct=edge_pct,
+                        arb=arb,
+                        lay_liq=lay_liq,
+                        commence_time=commence_time,
+                    )
 
                 # Place simulated bet if edge exceeds bet threshold
                 if edge_pct >= config.BET_THRESHOLD:

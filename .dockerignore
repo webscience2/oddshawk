@@ -1,0 +1,17 @@
+.env
+.env.*
+betfair-client.crt
+betfair-client.key
+*.db
+*.log
+*.log.*
+digest_*.md
+__pycache__/
+*.pyc
+.DS_Store
+venv/
+.venv/
+.git/
+.claude/
+.claude.local.md
+CLAUDE.md

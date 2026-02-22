@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oddshawk — {% block title %}Dashboard{% endblock %}</title>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --surface2: #232733;
+            --border: #2d3141;
+            --text: #e1e4ec;
+            --text-dim: #8b8fa3;
+            --green: #22c55e;
+            --green-bg: rgba(34,197,94,0.1);
+            --red: #ef4444;
+            --red-bg: rgba(239,68,68,0.1);
+            --blue: #3b82f6;
+            --blue-bg: rgba(59,130,246,0.1);
+            --yellow: #eab308;
+            --yellow-bg: rgba(234,179,8,0.1);
+            --accent: #f59e0b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        nav {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            height: 56px;
+        }
+
+        nav .logo {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: -0.02em;
+        }
+
+        nav .logo span { color: var(--text-dim); font-weight: 400; }
+
+        nav a {
+            color: var(--text-dim);
+            text-decoration: none;
+            padding: 1rem 0;
+            border-bottom: 2px solid transparent;
+            font-size: 0.875rem;
+            transition: all 0.15s;
+        }
+
+        nav a:hover { color: var(--text); }
+        nav a.active { color: var(--text); border-bottom-color: var(--accent); }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem 2rem;
+        }
+
+        .grid { display: grid; gap: 1rem; }
+        .grid-2 { grid-template-columns: 1fr 1fr; }
+        .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem;
+        }
+
+        .card h3 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dim);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat {
+            font-size: 1.75rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .stat-sub {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-top: 0.25rem;
+        }
+
+        .stat.green { color: var(--green); }
+        .stat.red { color: var(--red); }
+        .stat.blue { color: var(--blue); }
+        .stat.yellow { color: var(--yellow); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-dim);
+            font-weight: 500;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        td {
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:hover td { background: var(--surface2); }
+
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-green { background: var(--green-bg); color: var(--green); }
+        .badge-red { background: var(--red-bg); color: var(--red); }
+        .badge-blue { background: var(--blue-bg); color: var(--blue); }
+        .badge-yellow { background: var(--yellow-bg); color: var(--yellow); }
+
+        .edge-bar {
+            display: inline-block;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--green);
+            min-width: 4px;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 1.5rem 0 0.75rem 0;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .filter-bar a {
+            padding: 0.35rem 0.75rem;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.8rem;
+            transition: all 0.15s;
+        }
+
+        .filter-bar a:hover { color: var(--text); border-color: var(--text-dim); }
+        .filter-bar a.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+        select, button {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.35rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        button:hover { border-color: var(--accent); }
+
+        .btn-sm {
+            padding: 0.2rem 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .btn-green { background: var(--green-bg); color: var(--green); border-color: var(--green); }
+        .btn-red { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-dim);
+        }
+
+        .empty-state .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+
+        .refresh-note {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-align: right;
+        }
+
+        @media (max-width: 900px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            nav { padding: 0 1rem; gap: 1rem; }
+            .container { padding: 1rem; }
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <nav>
+        <div class="logo">oddshawk <span>v1</span></div>
+        <a href="/signals" class="{% if active_tab == 'signals' %}active{% endif %}">Signals</a>
+        <a href="/pnl" class="{% if active_tab == 'pnl' %}active{% endif %}">P&L</a>
+    </nav>
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

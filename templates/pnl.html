@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% set active_tab = "pnl" %}
+{% block title %}P&L{% endblock %}
+
+{% block content %}
+<!-- P&L summary cards -->
+<div class="grid grid-4" style="margin-bottom: 1rem;">
+    <div class="card">
+        <h3>Net P&L</h3>
+        {% set net = pnl.net_pnl or 0 if pnl else 0 %}
+        <div class="stat {% if net > 0 %}green{% elif net < 0 %}red{% endif %}">
+            {{ net|fmt_money }}
+        </div>
+        <div class="stat-sub">all time (value bets)</div>
+    </div>
+    <div class="card">
+        <h3>ROI</h3>
+        {% set staked = pnl.total_staked or 0 if pnl else 0 %}
+        {% set roi = (net / staked * 100) if staked > 0 else 0 %}
+        <div class="stat {% if roi > 0 %}green{% elif roi < 0 %}red{% endif %}">
+            {{ "%.1f"|format(roi) }}%
+        </div>
+        <div class="stat-sub">{{ staked|fmt_money }} staked</div>
+    </div>
+    <div class="card">
+        <h3>Win Rate</h3>
+        {% set wins = pnl.wins or 0 if pnl else 0 %}
+        {% set settled = pnl.settled_bets or 0 if pnl else 0 %}
+        {% set wr = (wins / settled * 100) if settled > 0 else 0 %}
+        <div class="stat {% if wr > 50 %}green{% elif wr > 0 %}yellow{% endif %}">
+            {{ "%.1f"|format(wr) }}%
+        </div>
+        <div class="stat-sub">{{ wins }}W / {{ (pnl.losses or 0) if pnl else 0 }}L ({{ settled }} settled)</div>
+    </div>
+    <div class="card">
+        <h3>Open Bets</h3>
+        <div class="stat blue">{{ unsettled|length }}</div>
+        <div class="stat-sub">{{ pnl.total_bets or 0 if pnl else 0 }} total</div>
+    </div>
+</div>
+
+<!-- Breakdown tables -->
+<div class="grid grid-2" style="margin-bottom: 1rem;">
+    <div class="card">
+        <h3>P&L by Bookmaker</h3>
+        {% if pnl_bm %}
+        <table>
+            <thead>
+                <tr><th>Bookmaker</th><th>Bets</th><th>W/L</th><th>Staked</th><th>P&L</th></tr>
+            </thead>
+            <tbody>
+                {% for r in pnl_bm %}
+                <tr>
+                    <td>{{ r.bookmaker }}</td>
+                    <td>{{ r.bets }}</td>
+                    <td>{{ r.wins or 0 }}/{{ r.losses or 0 }}</td>
+                    <td style="color: var(--text-dim);">{{ r.staked|fmt_money }}</td>
+                    <td>
+                        {% set rpnl = r.net_pnl or 0 %}
+                        <span class="{% if rpnl > 0 %}badge-green{% elif rpnl < 0 %}badge-red{% endif %} badge">
+                            {{ rpnl|fmt_money }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color: var(--text-dim); padding: 1rem;">No settled bets yet.</p>
+        {% endif %}
+    </div>
+    <div class="card">
+        <h3>P&L by Sport</h3>
+        {% if pnl_sport %}
+        <table>
+            <thead>
+                <tr><th>Sport</th><th>Bets</th><th>W/L</th><th>Staked</th><th>P&L</th></tr>
+            </thead>
+            <tbody>
+                {% for r in pnl_sport %}
+                <tr>
+                    <td>{{ r.sport }}</td>
+                    <td>{{ r.bets }}</td>
+                    <td>{{ r.wins or 0 }}/{{ r.losses or 0 }}</td>
+                    <td style="color: var(--text-dim);">{{ r.staked|fmt_money }}</td>
+                    <td>
+                        {% set rpnl = r.net_pnl or 0 %}
+                        <span class="{% if rpnl > 0 %}badge-green{% elif rpnl < 0 %}badge-red{% endif %} badge">
+                            {{ rpnl|fmt_money }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color: var(--text-dim); padding: 1rem;">No settled bets yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Bet type filter -->
+<div class="filter-bar">
+    <a href="?filter=all" class="{% if bet_filter == 'all' %}active{% endif %}">All</a>
+    <a href="?filter=arb" class="{% if bet_filter == 'arb' %}active{% endif %}">Arb Hedge</a>
+    <a href="?filter=value" class="{% if bet_filter == 'value' %}active{% endif %}">Value Only</a>
+</div>
+
+<!-- Open bets with full explanations and settle buttons -->
+<div class="section-title">Open Bets &mdash; Settle Results</div>
+{% if unsettled %}
+    {% for b in unsettled %}
+    <div class="card" style="margin-bottom: 0.75rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+            <div>
+                <span class="badge badge-blue">{{ b.sport.split('_')[-1]|upper }}</span>
+                <strong style="margin-left: 0.5rem;">{{ b.event_name }}</strong>
+                <span style="color: var(--text-dim); margin-left: 0.5rem;">#{{ b.id }}</span>
+            </div>
+            <div>
+                <form method="POST" action="/settle" style="display: inline;">
+                    <input type="hidden" name="bet_id" value="{{ b.id }}">
+                    <button type="submit" name="result" value="win" class="btn-sm btn-green">{{ b.outcome }} Won</button>
+                    <button type="submit" name="result" value="loss" class="btn-sm btn-red">{{ b.outcome }} Lost</button>
+                    <button type="submit" name="result" value="push" class="btn-sm">Push</button>
+                </form>
+            </div>
+        </div>
+
+        <div style="background: var(--surface2); border-radius: 6px; padding: 1rem; font-size: 0.85rem; line-height: 1.6;">
+            <!-- The bet explained -->
+            <div style="margin-bottom: 0.5rem;">
+                <strong style="color: var(--accent);">Value Bet:</strong>
+                Bet <strong>{{ b.stake|fmt_money }}</strong> on
+                <strong>{{ b.outcome }}</strong> to win with
+                <strong>{{ b.bookmaker }}</strong> at odds of
+                <strong style="color: var(--green);">{{ b.odds_at_detection|fmt_odds }}</strong>
+            </div>
+            <div style="margin-bottom: 0.5rem;">
+                If <strong>{{ b.outcome }} wins</strong>: payout
+                <strong style="color: var(--green);">{{ b.potential_payout|fmt_money }}</strong>
+                (profit {{ ((b.odds_at_detection - 1) * b.stake)|fmt_money }})
+                &nbsp;&bull;&nbsp;
+                If <strong>{{ b.outcome }} loses</strong>: lose
+                <strong style="color: var(--red);">{{ b.stake|fmt_money }}</strong>
+            </div>
+
+            {% if b.arb_lay_stake %}
+            <div style="border-top: 1px solid var(--border); margin-top: 0.5rem; padding-top: 0.5rem;">
+                {% set lay_price = b.betfair_lay_price if b.betfair_lay_price else b.betfair_back_price %}
+                {% if b.arb_profit and b.arb_profit > 0 %}
+                <strong style="color: var(--green);">Arb Hedge:</strong>
+                Could also lay <strong>{{ b.arb_lay_stake|fmt_money }}</strong> against {{ b.outcome }}
+                on <strong>Betfair</strong> @ {{ lay_price|fmt_odds }}
+                to guarantee <strong style="color: var(--green);">{{ b.arb_profit|fmt_money }}</strong> profit
+                regardless of outcome.
+                {% if b.lay_liquidity is not none %}
+                    {% if b.arb_lay_stake > b.lay_liquidity %}
+                    <br><span style="color: var(--red);">WARNING: Need to lay {{ b.arb_lay_stake|fmt_money }} but only ${{ "%.0f"|format(b.lay_liquidity) }} available at this price</span>
+                    {% else %}
+                    <span style="color: var(--text-dim);">&mdash; ${{ "%.0f"|format(b.lay_liquidity) }} available to lay</span>
+                    {% endif %}
+                {% endif %}
+                {% else %}
+                <span style="color: var(--text-dim);">
+                    <strong>Arb Hedge:</strong> Not profitable after Betfair commission at lay price {{ lay_price|fmt_odds }}.
+                </span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="margin-top: 0.5rem; color: var(--text-dim); font-size: 0.75rem;">
+            Placed {{ b.placed_at|fmt_time }}
+            {% if b.betfair_back_price %} &bull; Betfair back @ {{ b.betfair_back_price|fmt_odds }}{% endif %}
+            {% if b.betfair_lay_price %} / lay @ {{ b.betfair_lay_price|fmt_odds }}{% endif %}
+            {% if b.lay_liquidity is not none %} &bull; ${{ "%.0f"|format(b.lay_liquidity) }} lay liquidity{% endif %}
+            {% if b.betfair_total_matched %} &bull; ${{ "%.0f"|format(b.betfair_total_matched) }} total matched{% endif %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div class="icon">-_-</div>
+        <p>No open bets. Simulated bets are placed when edges exceed 8%.</p>
+    </div>
+</div>
+{% endif %}
+
+<!-- Settled bet history -->
+<div class="section-title">Recent Signals</div>
+<div class="card">
+    {% if recent_signals %}
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Sport</th>
+                <th>Event</th>
+                <th>Outcome</th>
+                <th>Bookmaker</th>
+                <th>Soft Odds</th>
+                <th>BF Odds</th>
+                <th>Edge</th>
+                <th>Arb</th>
+                <th>Bet?</th>
+                <th>Result</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in recent_signals %}
+            <tr>
+                <td style="color: var(--text-dim); white-space: nowrap;">{{ s.detected_at|fmt_time }}</td>
+                <td><span class="badge badge-blue">{{ s.sport.split('_')[-1]|upper }}</span></td>
+                <td>{{ s.event_name }}</td>
+                <td>{{ s.outcome }}</td>
+                <td>{{ s.bookmaker }}</td>
+                <td style="font-weight: 600;">{{ s.soft_decimal_odds|fmt_odds }}</td>
+                <td>{{ s.betfair_back_price|fmt_odds if s.betfair_back_price else '-' }}</td>
+                <td>
+                    <span class="badge {% if s.edge_pct >= 0.08 %}badge-green{% else %}badge-yellow{% endif %}">
+                        {{ s.edge_pct|fmt_pct }}
+                    </span>
+                </td>
+                <td>
+                    {% if s.arb_roi_pct is not none and s.arb_roi_pct > 0 %}
+                        <span class="badge badge-green">{{ "%.1f"|format(s.arb_roi_pct) }}%</span>
+                    {% else %}
+                        <span style="color: var(--text-dim);">&mdash;</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if s.edge_pct >= 0.08 %}
+                        <span class="badge badge-green">SIM</span>
+                    {% else %}
+                        <span style="color: var(--text-dim);">&mdash;</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if s.resolved %}
+                        {% if s.outcome_won == 1 %}
+                            <span class="badge badge-green">WON</span>
+                        {% else %}
+                            <span class="badge badge-red">LOST</span>
+                        {% endif %}
+                    {% else %}
+                        <span style="color: var(--text-dim);">pending</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="icon">-_-</div>
+        <p>No signals detected yet.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

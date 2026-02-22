@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% set active_tab = "signals" %}
+{% block title %}Signals{% endblock %}
+
+{% block content %}
+<!-- Time filter -->
+<div class="filter-bar">
+    <a href="?hours=1" class="{% if hours == 1 %}active{% endif %}">1h</a>
+    <a href="?hours=6" class="{% if hours == 6 %}active{% endif %}">6h</a>
+    <a href="?hours=24" class="{% if hours == 24 %}active{% endif %}">24h</a>
+    <a href="?hours=72" class="{% if hours == 72 %}active{% endif %}">3d</a>
+    <a href="?hours=168" class="{% if hours == 168 %}active{% endif %}">7d</a>
+</div>
+
+<!-- Summary cards -->
+<div class="grid grid-4" style="margin-bottom: 1rem;">
+    <div class="card">
+        <h3>Opportunities Found</h3>
+        <div class="stat green">{{ signals|length }}</div>
+        <div class="stat-sub">last {{ hours }}h</div>
+    </div>
+    <div class="card">
+        <h3>Sports Active</h3>
+        <div class="stat blue">{{ by_sport|length }}</div>
+        <div class="stat-sub">
+            {% for s in by_sport %}{{ s.sport.split('_')[-1]|upper }}{% if not loop.last %}, {% endif %}{% endfor %}
+            {% if not by_sport %}none{% endif %}
+        </div>
+    </div>
+    <div class="card">
+        <h3>Best Edge</h3>
+        <div class="stat yellow">
+            {% if signals %}{{ signals[0].edge_pct|fmt_pct }}{% else %}&mdash;{% endif %}
+        </div>
+        <div class="stat-sub">
+            {% if signals %}{{ signals[0].bookmaker }}{% else %}no signals{% endif %}
+        </div>
+    </div>
+    <div class="card">
+        <h3>Credits Today</h3>
+        <div class="stat">{{ credits_today }}</div>
+        <div class="stat-sub">
+            {% if credit_hist %}remaining: {{ credit_hist[0].credits_remaining if credit_hist[0].credits_remaining else '?' }}{% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Bookmaker + Sport breakdown -->
+{% if by_bookmaker %}
+<div class="grid grid-2" style="margin-bottom: 1rem;">
+    <div class="card">
+        <h3>By Bookmaker</h3>
+        <table>
+            <thead>
+                <tr><th>Bookmaker</th><th>Signals</th><th>Avg Edge</th><th>Sports</th></tr>
+            </thead>
+            <tbody>
+                {% for r in by_bookmaker %}
+                <tr>
+                    <td>{{ r.bookmaker }}</td>
+                    <td>{{ r.signal_count }}</td>
+                    <td><span class="badge badge-green">{{ r.avg_edge|fmt_pct }}</span></td>
+                    <td style="color: var(--text-dim);">{{ r.sports }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card">
+        <h3>By Sport</h3>
+        <table>
+            <thead>
+                <tr><th>Sport</th><th>Signals</th><th>Avg Edge</th></tr>
+            </thead>
+            <tbody>
+                {% for r in by_sport %}
+                <tr>
+                    <td>{{ r.sport }}</td>
+                    <td>{{ r.signal_count }}</td>
+                    <td><span class="badge badge-green">{{ r.avg_edge|fmt_pct }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Opportunities — each as a card with plain English explanation -->
+<div class="section-title">Opportunities</div>
+{% if signals %}
+    {% for s in signals %}
+    <div class="card" style="margin-bottom: 0.75rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+            <div>
+                <span class="badge badge-blue">{{ s.sport.split('_')[-1]|upper }}</span>
+                <span style="font-weight: 600; margin-left: 0.5rem;">{{ s.event_name }}</span>
+                <span style="color: var(--text-dim); margin-left: 0.5rem;">{{ s.detected_at|fmt_time }}</span>
+            </div>
+            <div>
+                <span class="badge {% if s.edge_pct >= 0.08 %}badge-green{% else %}badge-yellow{% endif %}" style="font-size: 0.9rem;">
+                    {{ s.edge_pct|fmt_pct }} edge
+                </span>
+            </div>
+        </div>
+
+        <!-- The plain English explanation -->
+        <div style="background: var(--surface2); border-radius: 6px; padding: 1rem; font-size: 0.85rem; line-height: 1.6;">
+            <div style="margin-bottom: 0.5rem;">
+                <strong style="color: var(--accent);">Value Bet:</strong>
+                <strong>{{ s.bookmaker }}</strong> is offering <strong>{{ s.outcome }}</strong> at
+                <strong style="color: var(--green);">{{ s.soft_decimal_odds|fmt_odds }}</strong>
+                &mdash; that's a {{ s.soft_implied_prob|fmt_pct }} implied chance.
+            </div>
+            <div style="margin-bottom: 0.5rem;">
+                <strong>Betfair Exchange</strong> prices {{ s.outcome }}:
+                back @ <strong>{{ s.betfair_back_price|fmt_odds }}</strong>
+                {% if s.betfair_lay_price %} / lay @ <strong>{{ s.betfair_lay_price|fmt_odds }}</strong>{% endif %}
+                ({{ "%.0f"|format(1/s.betfair_back_price*100) }}% implied, {{ s.betfair_true_prob|fmt_pct }} after 5% commission).
+                {% if s.back_liquidity or s.lay_liquidity %}
+                <br>
+                <span style="color: var(--text-dim);">
+                    Liquidity:
+                    {% if s.back_liquidity %}${{ "%.0f"|format(s.back_liquidity) }} to back{% endif %}
+                    {% if s.back_liquidity and s.lay_liquidity %} / {% endif %}
+                    {% if s.lay_liquidity %}${{ "%.0f"|format(s.lay_liquidity) }} to lay{% endif %}
+                    {% if s.betfair_total_matched %}
+                    &nbsp;&bull;&nbsp; <strong>${{ "%.0f"|format(s.betfair_total_matched) }}</strong> total matched
+                    {% endif %}
+                </span>
+                {% endif %}
+            </div>
+            <div style="margin-bottom: 0.5rem;">
+                <strong style="color: var(--accent);">Meaning:</strong>
+                {{ s.bookmaker }} is paying out as if {{ s.outcome }} has a {{ s.soft_implied_prob|fmt_pct }} chance,
+                but the exchange says it's {{ s.betfair_true_prob|fmt_pct }}.
+                That's a <strong>{{ s.edge_pct|fmt_pct }} edge</strong> in your favour.
+            </div>
+
+            {% if s.arb_profit_back is not none %}
+            <div style="border-top: 1px solid var(--border); margin-top: 0.5rem; padding-top: 0.5rem;">
+                {% set lay_price = s.betfair_lay_price if s.betfair_lay_price else s.betfair_back_price %}
+                {% if s.arb_roi_pct is not none and s.arb_roi_pct > 0 %}
+                <strong style="color: var(--green);">Arb Hedge Available:</strong>
+                Back $100 on <strong>{{ s.outcome }}</strong> with {{ s.bookmaker }} @ {{ s.soft_decimal_odds|fmt_odds }},
+                then lay ${{ "%.2f"|format(s.arb_lay_stake) }} against {{ s.outcome }} on Betfair @ {{ lay_price|fmt_odds }}.
+                <br>
+                &rarr; If {{ s.outcome }} <strong>wins</strong>: profit ${{ "%.2f"|format(s.arb_profit_back) }}
+                &nbsp;&bull;&nbsp;
+                If {{ s.outcome }} <strong>loses</strong>: profit ${{ "%.2f"|format(s.arb_profit_lay) }}
+                <br>
+                <strong>Guaranteed profit: ${{ "%.2f"|format([s.arb_profit_back, s.arb_profit_lay]|min) }}</strong>
+                ({{ "%.1f"|format(s.arb_roi_pct) }}% ROI)
+                {% if s.lay_liquidity is not none %}
+                    {% if s.arb_lay_stake > s.lay_liquidity %}
+                    <br><span style="color: var(--red);">WARNING: Need to lay ${{ "%.0f"|format(s.arb_lay_stake) }} but only ${{ "%.0f"|format(s.lay_liquidity) }} available at this price</span>
+                    {% else %}
+                    <span style="color: var(--text-dim);">&mdash; ${{ "%.0f"|format(s.lay_liquidity) }} available to lay</span>
+                    {% endif %}
+                {% endif %}
+                {% else %}
+                <span style="color: var(--text-dim);">
+                    <strong>Arb Hedge:</strong> Not profitable after Betfair 5% commission at lay price {{ lay_price|fmt_odds }}.
+                    Value bet only &mdash; no guaranteed arb.
+                </span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div class="icon">-_-</div>
+        <p>No opportunities detected in the last {{ hours }} hours.<br>Scanner is polling &mdash; check back soon.</p>
+    </div>
+</div>
+{% endif %}
+
+<!-- Credit history -->
+{% if credit_hist %}
+<div class="card" style="margin-top: 1rem;">
+    <h3>Credit Usage (7 days)</h3>
+    <table>
+        <thead>
+            <tr><th>Date</th><th>Used</th><th>Remaining</th></tr>
+        </thead>
+        <tbody>
+            {% for c in credit_hist %}
+            <tr>
+                <td>{{ c.date }}</td>
+                <td>{{ c.credits_used }}</td>
+                <td>{{ c.credits_remaining if c.credits_remaining else '?' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<p class="refresh-note" style="margin-top: 0.75rem;">
+    Auto-refreshes every 60s &bull; Last: {{ now }}
+</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    setTimeout(() => window.location.reload(), 60000);
+</script>
+{% endblock %}

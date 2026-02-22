@@ -64,6 +64,19 @@ TELEGRAM_ENABLED = _bool("TELEGRAM_ENABLED", "false")
 TELEGRAM_BOT_TOKEN = _get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = _get("TELEGRAM_CHAT_ID", "")
 
+# --- Newsbot ---
+NEWSBOT_ENABLED = _bool("NEWSBOT_ENABLED", "false")
+NEWSBOT_POLL_INTERVAL = _int("NEWSBOT_POLL_INTERVAL", "15")  # seconds
+NEWSBOT_MARKET_REFRESH = _int("NEWSBOT_MARKET_REFRESH", "60")  # seconds
+NEWSBOT_EDGE_THRESHOLD = _float("NEWSBOT_EDGE_THRESHOLD", "0.05")  # 5%
+NEWSBOT_MIN_MATCHED = _float("NEWSBOT_MIN_MATCHED", "500")
+NEWSBOT_SIM_STAKE = _float("NEWSBOT_SIM_STAKE", "100")
+NEWSBOT_COOLDOWN = _int("NEWSBOT_COOLDOWN", "300")  # seconds between signals on same market
+
+# --- Gemini ---
+GEMINI_API_KEY = _get("GEMINI_API_KEY", "")
+GEMINI_MODEL = _get("GEMINI_MODEL", "gemini-2.0-flash")
+
 # --- Email ---
 EMAIL_ENABLED = _bool("EMAIL_ENABLED", "false")
 EMAIL_TO = _get("EMAIL_TO", "")

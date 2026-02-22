@@ -150,6 +150,58 @@ CREATE INDEX IF NOT EXISTS idx_betfair_captured
 
 CREATE INDEX IF NOT EXISTS idx_credit_date
     ON credit_usage(date);
+
+CREATE TABLE IF NOT EXISTS articles (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    url          TEXT NOT NULL UNIQUE,
+    guid         TEXT,
+    feed_source  TEXT NOT NULL,
+    title        TEXT NOT NULL,
+    summary      TEXT,
+    full_text    TEXT,
+    published_at TEXT,
+    fetched_at   TEXT NOT NULL,
+    analysed     INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS news_signals (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    article_id          INTEGER NOT NULL,
+    market_id           TEXT NOT NULL,
+    market_name         TEXT NOT NULL,
+    runner_name         TEXT NOT NULL,
+    signal_type         TEXT NOT NULL,
+    current_back_price  REAL,
+    current_lay_price   REAL,
+    current_implied_prob REAL,
+    estimated_fair_prob REAL,
+    edge_pct            REAL,
+    gemini_reasoning    TEXT,
+    detected_at         TEXT NOT NULL,
+    FOREIGN KEY (article_id) REFERENCES articles(id)
+);
+
+CREATE TABLE IF NOT EXISTS news_bets (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    signal_id        INTEGER NOT NULL,
+    market_id        TEXT NOT NULL,
+    market_name      TEXT NOT NULL,
+    runner_name      TEXT NOT NULL,
+    side             TEXT NOT NULL DEFAULT 'back',
+    odds_at_detection REAL NOT NULL,
+    stake            REAL NOT NULL,
+    potential_payout REAL NOT NULL,
+    placed_at        TEXT NOT NULL,
+    settled          INTEGER NOT NULL DEFAULT 0,
+    result           TEXT,
+    pnl              REAL,
+    FOREIGN KEY (signal_id) REFERENCES news_signals(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_articles_url ON articles(url);
+CREATE INDEX IF NOT EXISTS idx_articles_fetched ON articles(fetched_at);
+CREATE INDEX IF NOT EXISTS idx_news_signals_detected ON news_signals(detected_at);
+CREATE INDEX IF NOT EXISTS idx_news_bets_unsettled ON news_bets(settled) WHERE settled = 0;
 """
 
 
@@ -262,6 +314,56 @@ def insert_simulated_bet(conn, *, signal_id, sport, event_id, event_name,
          arb_lay_stake, arb_profit, betfair_total_matched,
          betfair_market_id, description, placed_at),
     )
+
+
+def insert_article(conn, *, url, guid, feed_source, title, summary,
+                   full_text, published_at, fetched_at):
+    """Insert a new article. Returns row id, or None if duplicate URL."""
+    try:
+        cur = conn.execute(
+            """INSERT INTO articles (url, guid, feed_source, title, summary,
+               full_text, published_at, fetched_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (url, guid, feed_source, title, summary, full_text,
+             published_at, fetched_at),
+        )
+        return cur.lastrowid
+    except sqlite3.IntegrityError:
+        return None  # duplicate URL
+
+
+def insert_news_signal(conn, *, article_id, market_id, market_name,
+                       runner_name, signal_type, current_back_price,
+                       current_lay_price, current_implied_prob,
+                       estimated_fair_prob, edge_pct, gemini_reasoning,
+                       detected_at):
+    """Insert a news signal. Returns row id."""
+    cur = conn.execute(
+        """INSERT INTO news_signals (article_id, market_id, market_name,
+           runner_name, signal_type, current_back_price, current_lay_price,
+           current_implied_prob, estimated_fair_prob, edge_pct,
+           gemini_reasoning, detected_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (article_id, market_id, market_name, runner_name, signal_type,
+         current_back_price, current_lay_price, current_implied_prob,
+         estimated_fair_prob, edge_pct, gemini_reasoning, detected_at),
+    )
+    return cur.lastrowid
+
+
+def insert_news_bet(conn, *, signal_id, market_id, market_name,
+                    runner_name, side, odds_at_detection, stake,
+                    potential_payout, placed_at):
+    """Insert a simulated news bet. Returns row id."""
+    cur = conn.execute(
+        """INSERT INTO news_bets (signal_id, market_id, market_name,
+           runner_name, side, odds_at_detection, stake, potential_payout,
+           placed_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (signal_id, market_id, market_name, runner_name, side,
+         odds_at_detection, stake, potential_payout, placed_at),
+    )
+    return cur.lastrowid
 
 
 # ---------------------------------------------------------------------------

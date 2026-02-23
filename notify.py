@@ -166,3 +166,56 @@ def send_signal_alert(
 
     thread = threading.Thread(target=_send_telegram, args=(text,), daemon=True)
     thread.start()
+
+
+def _build_news_signal_message(*, signal_type, market_name, runner_name,
+                                current_back, current_implied, estimated_prob,
+                                edge_pct, reasoning, article_title,
+                                feed_source, published_at):
+    """Build Telegram message for a news-driven signal."""
+    if signal_type == "shock":
+        emoji = "\U0001f4a5"  # explosion
+        header = "SHOCK SIGNAL"
+    else:
+        emoji = "\U0001f4f0"  # newspaper
+        header = "NEWS SIGNAL"
+
+    imp_pct = f"{current_implied * 100:.0f}%" if current_implied else "?"
+    est_pct = f"{estimated_prob * 100:.0f}%" if estimated_prob else "?"
+    back_str = f"{current_back:.2f}" if current_back else "?"
+    edge_str = f"{edge_pct * 100:.1f}%" if edge_pct else "?"
+
+    pub_str = ""
+    if published_at:
+        pub_str = f"\nPublished: {_format_time(published_at)}"
+
+    feed_label = feed_source.replace("_", " ").title() if feed_source else "?"
+
+    lines = [
+        f"{emoji} {header}",
+        f"",
+        f"{market_name}",
+        f"{runner_name} @ {back_str} (market: {imp_pct})",
+        f"",
+        f"Gemini estimate: {est_pct}",
+        f"Edge: {edge_str}",
+        f"",
+        f"Reason: {reasoning}",
+        f"",
+        f"Source: {feed_label}",
+        f'"{article_title[:100]}"',
+    ]
+    if pub_str:
+        lines.append(pub_str)
+
+    return "\n".join(lines)
+
+
+def send_news_signal_alert(**kwargs):
+    """Fire-and-forget news signal notification."""
+    if not config.TELEGRAM_ENABLED:
+        return
+
+    text = _build_news_signal_message(**kwargs)
+    thread = threading.Thread(target=_send_telegram, args=(text,), daemon=True)
+    thread.start()

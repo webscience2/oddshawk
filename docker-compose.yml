@@ -29,5 +29,19 @@ services:
       - ./betfair-client.key:/app/betfair-client.key:ro
     command: ["python3", "dashboard.py"]
 
+  newsbot:
+    build: .
+    container_name: oddshawk-newsbot
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DB_PATH=/app/data/oddshawk.db
+      - LOG_PATH=/app/data/newsbot.log
+    volumes:
+      - oddshawk-data:/app/data
+      - ./betfair-client.crt:/app/betfair-client.crt:ro
+      - ./betfair-client.key:/app/betfair-client.key:ro
+    command: ["python3", "newsbot.py"]
+
 volumes:
   oddshawk-data:

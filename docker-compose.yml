@@ -8,7 +8,7 @@ services:
       - DB_PATH=/app/data/oddshawk.db
       - LOG_PATH=/app/data/oddshawk.log
     volumes:
-      - oddshawk-data:/app/data
+      - ./data:/app/data
       - ./betfair-client.crt:/app/betfair-client.crt:ro
       - ./betfair-client.key:/app/betfair-client.key:ro
     command: ["python3", "main.py"]
@@ -24,7 +24,7 @@ services:
     ports:
       - "5050:5050"
     volumes:
-      - oddshawk-data:/app/data
+      - ./data:/app/data
       - ./betfair-client.crt:/app/betfair-client.crt:ro
       - ./betfair-client.key:/app/betfair-client.key:ro
     command: ["python3", "dashboard.py"]
@@ -38,10 +38,7 @@ services:
       - DB_PATH=/app/data/oddshawk.db
       - LOG_PATH=/app/data/newsbot.log
     volumes:
-      - oddshawk-data:/app/data
+      - ./data:/app/data
       - ./betfair-client.crt:/app/betfair-client.crt:ro
       - ./betfair-client.key:/app/betfair-client.key:ro
     command: ["python3", "newsbot.py"]
-
-volumes:
-  oddshawk-data:

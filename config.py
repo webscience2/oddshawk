@@ -104,11 +104,13 @@ SPORTS = [
     # Soccer — high Betfair liquidity, AU soft bookmakers active
     "soccer_epl",
     "soccer_australia_aleague",
-    "soccer_uefa_champs_league",
     "soccer_spain_la_liga",
     "soccer_italy_serie_a",
     "soccer_germany_bundesliga",
-    "soccer_france_ligue_one",
+    # Dropped (saves 3 credits/scan):
+    # "soccer_uefa_champs_league",  # No Betfair MATCH_ODDS markets
+    # "soccer_france_ligue_one",    # Betfair matched always <$5k minimum
+    # "icehockey_nhl",              # 3-way vs 2-way mismatch (BETFAIR_SKIP_SPORTS)
     # Ice Hockey
     "icehockey_nhl",
 ]

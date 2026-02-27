@@ -29,6 +29,51 @@
     </div>
 </div>
 
+<!-- Monitored Politics Markets -->
+<div class="section-title">Monitored Politics Markets ({{ markets|length }})</div>
+{% if markets %}
+<div class="grid grid-2" style="margin-bottom: 1rem;">
+    {% for mid, m in markets.items() %}
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+            <h3 style="margin: 0; font-size: 0.9rem;">{{ m.market_name }}</h3>
+            <span style="color: var(--text-dim); font-size: 0.75rem;">
+                ${{ "%.0f"|format(m.total_matched or 0) }} matched
+            </span>
+        </div>
+        <table style="font-size: 0.8rem;">
+            <thead>
+                <tr><th>Runner</th><th>Back</th><th>Lay</th><th>Prob</th><th>Liq</th></tr>
+            </thead>
+            <tbody>
+                {% for r in m.runners[:8] %}
+                <tr>
+                    <td>{{ r.runner_name }}</td>
+                    <td style="color: var(--green);">{{ r.back_price|fmt_odds if r.back_price else '-' }}</td>
+                    <td style="color: var(--red);">{{ r.lay_price|fmt_odds if r.lay_price else '-' }}</td>
+                    <td>{{ "%.0f"|format(r.implied_prob * 100) }}%</td>
+                    <td style="color: var(--text-dim);">${{ "%.0f"|format((r.back_liq or 0) + (r.lay_liq or 0)) }}</td>
+                </tr>
+                {% endfor %}
+                {% if m.runners|length > 8 %}
+                <tr><td colspan="5" style="color: var(--text-dim); text-align: center;">+{{ m.runners|length - 8 }} more</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+        <div style="color: var(--text-dim); font-size: 0.7rem; margin-top: 0.25rem;">
+            Updated {{ m.updated_at|fmt_time }}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card" style="margin-bottom: 1rem;">
+    <p style="color: var(--text-dim); text-align: center; padding: 1rem;">
+        No politics markets loaded yet. The newsbot will populate this on its next Betfair refresh.
+    </p>
+</div>
+{% endif %}
+
 <!-- News Signals -->
 <div class="section-title">News Signals</div>
 {% if news_signals %}

@@ -198,6 +198,20 @@ CREATE TABLE IF NOT EXISTS news_bets (
     FOREIGN KEY (signal_id) REFERENCES news_signals(id)
 );
 
+CREATE TABLE IF NOT EXISTS politics_markets (
+    market_id     TEXT NOT NULL,
+    market_name   TEXT NOT NULL,
+    runner_name   TEXT NOT NULL,
+    back_price    REAL,
+    lay_price     REAL,
+    back_liq      REAL,
+    lay_liq       REAL,
+    implied_prob  REAL,
+    total_matched REAL,
+    updated_at    TEXT NOT NULL,
+    PRIMARY KEY (market_id, runner_name)
+);
+
 CREATE INDEX IF NOT EXISTS idx_articles_url ON articles(url);
 CREATE INDEX IF NOT EXISTS idx_articles_fetched ON articles(fetched_at);
 CREATE INDEX IF NOT EXISTS idx_news_signals_detected ON news_signals(detected_at);
@@ -620,4 +634,41 @@ def get_news_bets_summary(conn) -> list[sqlite3.Row]:
            JOIN news_signals ns ON nb.signal_id = ns.id
            JOIN articles a ON ns.article_id = a.id
            ORDER BY nb.placed_at DESC"""
+    ).fetchall()
+
+
+# ---------------------------------------------------------------------------
+# Politics markets (newsbot Betfair cache persisted to DB)
+# ---------------------------------------------------------------------------
+
+def upsert_politics_market(conn, *, market_id, market_name, runner_name,
+                           back_price, lay_price, back_liq, lay_liq,
+                           implied_prob, total_matched, updated_at):
+    """Insert or update a politics market runner row."""
+    conn.execute(
+        """INSERT INTO politics_markets
+               (market_id, market_name, runner_name, back_price, lay_price,
+                back_liq, lay_liq, implied_prob, total_matched, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(market_id, runner_name) DO UPDATE SET
+               market_name = excluded.market_name,
+               back_price = excluded.back_price,
+               lay_price = excluded.lay_price,
+               back_liq = excluded.back_liq,
+               lay_liq = excluded.lay_liq,
+               implied_prob = excluded.implied_prob,
+               total_matched = excluded.total_matched,
+               updated_at = excluded.updated_at""",
+        (market_id, market_name, runner_name, back_price, lay_price,
+         back_liq, lay_liq, implied_prob, total_matched, updated_at),
+    )
+
+
+def get_politics_markets(conn) -> list[sqlite3.Row]:
+    """All politics market runners, grouped by market, top runners first."""
+    return conn.execute(
+        """SELECT market_id, market_name, runner_name, back_price, lay_price,
+                  back_liq, lay_liq, implied_prob, total_matched, updated_at
+           FROM politics_markets
+           ORDER BY market_name, implied_prob DESC"""
     ).fetchall()

@@ -350,6 +350,16 @@ def process_event(conn, sport: str, event: dict, now_iso: str,
     event_name = f"{home_team} vs {away_team}"
     commence_time = event.get("commence_time", "")
 
+    # Skip events starting within 30 minutes (odds too volatile / in-play)
+    if commence_time:
+        try:
+            ct = datetime.fromisoformat(commence_time)
+            now = datetime.now(timezone.utc)
+            if ct <= now + timedelta(minutes=30):
+                return 0
+        except ValueError:
+            pass
+
     bookmakers_data = event.get("bookmakers", [])
     if not bookmakers_data:
         return 0
@@ -616,7 +626,10 @@ def process_event(conn, sport: str, event: dict, now_iso: str,
                     )
 
                 # Place simulated bet if edge exceeds bet threshold
-                if edge_pct >= config.BET_THRESHOLD:
+                # (one bet per event/outcome/bookmaker — skip if already open)
+                if edge_pct >= config.BET_THRESHOLD and not models.simulated_bet_exists(
+                    conn, event_id, name, bm_key
+                ):
                     potential_payout = stake * decimal_odds
                     desc = build_bet_description(
                         outcome=name,

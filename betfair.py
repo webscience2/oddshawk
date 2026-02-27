@@ -139,8 +139,10 @@ def _name_tokens(name: str) -> set[str]:
 
 
 # Sports that use different market types on Betfair
+# NOTE: The Odds API h2h returns 3-way regulation time odds for NHL
+# (and soccer), so we must use MATCH_ODDS on Betfair to match.
+# MONEY_LINE (2-way including OT) would be a market mismatch.
 SPORT_MARKET_TYPES = {
-    "icehockey_nhl": ["MONEY_LINE"],
 }
 
 

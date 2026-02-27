@@ -291,6 +291,18 @@ def insert_value_signal(conn, *, sport, event_id, event_name, commence_time,
     return cur.lastrowid
 
 
+def simulated_bet_exists(conn, event_id, outcome, bookmaker):
+    """Check if an unsettled simulated bet already exists for this combo."""
+    row = conn.execute(
+        """SELECT 1 FROM simulated_bets
+           WHERE event_id = ? AND outcome = ? AND bookmaker = ?
+             AND result IS NULL
+           LIMIT 1""",
+        (event_id, outcome, bookmaker),
+    ).fetchone()
+    return row is not None
+
+
 def insert_simulated_bet(conn, *, signal_id, sport, event_id, event_name,
                          commence_time, bookmaker, outcome,
                          odds_at_detection, stake, potential_payout,

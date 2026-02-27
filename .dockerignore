@@ -2,6 +2,7 @@
 .env.*
 betfair-client.crt
 betfair-client.key
+data/
 *.db
 *.log
 *.log.*

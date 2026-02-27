@@ -54,11 +54,14 @@ def main():
     logger = logging.getLogger("oddshawk.scanner")
 
     logger.info("Oddshawk scanner starting up...")
-    logger.info("API key: %s...%s", config.ODDS_API_KEY[:4], config.ODDS_API_KEY[-4:])
+    for i, key in enumerate(config.ODDS_API_KEYS, 1):
+        logger.info("API key %d/%d: %s...%s", i, len(config.ODDS_API_KEYS), key[:4], key[-4:])
     logger.info("Sports: %s", ", ".join(config.SPORTS))
     logger.info("Value threshold: %.1f%%, Bet threshold: %.1f%%",
                 config.VALUE_THRESHOLD * 100, config.BET_THRESHOLD * 100)
-    logger.info("Monthly credit budget: %d", config.MONTHLY_CREDIT_BUDGET)
+    logger.info("Monthly credit budget: %d (daily: %d per key)",
+                config.MONTHLY_CREDIT_BUDGET,
+                config.MONTHLY_CREDIT_BUDGET // 30)
 
     # Initialize database
     models.init_db()

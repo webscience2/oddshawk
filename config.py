@@ -30,7 +30,14 @@ def _bool(key: str, default: str) -> bool:
 
 
 # --- API ---
-ODDS_API_KEY = _get("ODDS_API_KEY")
+# Support multiple API keys (comma-separated) for credit rotation.
+# Accepts ODDS_API_KEYS (preferred) or legacy ODDS_API_KEY.
+_raw_keys = _get("ODDS_API_KEYS", "") or _get("ODDS_API_KEY", "")
+ODDS_API_KEYS: list[str] = [k.strip() for k in _raw_keys.split(",") if k.strip()]
+if not ODDS_API_KEYS:
+    raise ValueError("Missing required env var: ODDS_API_KEYS (or ODDS_API_KEY)")
+# Legacy single-key reference (uses first key)
+ODDS_API_KEY = ODDS_API_KEYS[0]
 ODDS_API_BASE = "https://api.the-odds-api.com/v4"
 
 # --- Betfair Exchange API ---

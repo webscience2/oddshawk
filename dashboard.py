@@ -126,6 +126,20 @@ def news_page():
         articles = models.get_recent_articles(conn, limit=50)
         news_signals = models.get_news_signals_recent(conn, limit=50)
         news_bets = models.get_news_bets_summary(conn)
+        politics_markets = models.get_politics_markets(conn)
+
+    # Group runners by market for template display
+    markets_grouped = {}
+    for row in politics_markets:
+        mid = row["market_id"]
+        if mid not in markets_grouped:
+            markets_grouped[mid] = {
+                "market_name": row["market_name"],
+                "total_matched": row["total_matched"],
+                "updated_at": row["updated_at"],
+                "runners": [],
+            }
+        markets_grouped[mid]["runners"].append(row)
 
     return render_template(
         "news.html",
@@ -133,6 +147,7 @@ def news_page():
         articles=articles,
         news_signals=news_signals,
         news_bets=news_bets,
+        markets=markets_grouped,
     )
 
 

@@ -128,6 +128,31 @@ def _fetch_politics_markets() -> dict:
     return result
 
 
+def _persist_to_db(markets_data: dict):
+    """Write current market state to DB so the dashboard can display it."""
+    import models
+    now_iso = datetime.now(timezone.utc).isoformat()
+    try:
+        with models.get_db() as conn:
+            for market_id, mdata in markets_data.items():
+                for rname, rdata in mdata["runners"].items():
+                    models.upsert_politics_market(
+                        conn,
+                        market_id=market_id,
+                        market_name=mdata["market_name"],
+                        runner_name=rname,
+                        back_price=rdata["back_price"],
+                        lay_price=rdata["lay_price"],
+                        back_liq=rdata["back_liq"],
+                        lay_liq=rdata["lay_liq"],
+                        implied_prob=rdata["implied_prob"],
+                        total_matched=mdata["total_matched"],
+                        updated_at=now_iso,
+                    )
+    except Exception as e:
+        logger.warning("Failed to persist politics markets to DB: %s", e)
+
+
 def get_markets(force_refresh: bool = False) -> dict:
     """Get cached politics markets, refreshing if stale."""
     global _markets, _last_refresh
@@ -136,6 +161,8 @@ def get_markets(force_refresh: bool = False) -> dict:
     if force_refresh or (now - _last_refresh) > config.NEWSBOT_MARKET_REFRESH:
         _markets = _fetch_politics_markets()
         _last_refresh = now
+        if _markets:
+            _persist_to_db(_markets)
 
     return _markets
 

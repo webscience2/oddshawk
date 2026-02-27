@@ -20,6 +20,12 @@ logger = logging.getLogger("oddshawk.scanner")
 # Credits per Odds API call: 1 if Betfair API handles exchange data, 2 if not
 CREDITS_PER_CALL = 1 if config.BETFAIR_ENABLED else 2
 
+# Sports where The Odds API h2h and Betfair MATCH_ODDS are incompatible.
+# NHL: API returns 3-way regulation (Home/Away/Draw ~82% sum) but Betfair
+# is 2-way money line including OT (~100% sum). Odds snapshots are still
+# captured; only Betfair edge comparison is skipped.
+BETFAIR_SKIP_SPORTS: set[str] = {"icehockey_nhl"}
+
 
 def _name_tokens(name: str) -> set[str]:
     """Extract meaningful tokens from a team name for fuzzy matching."""
@@ -503,8 +509,9 @@ def process_event(conn, sport: str, event: dict, now_iso: str,
                 captured_at=now_iso,
             )
     else:
-        logger.debug("No Betfair data for %s — skipping", event_name)
-        return 0
+        if sport not in BETFAIR_SKIP_SPORTS:
+            logger.debug("No Betfair data for %s — skipping", event_name)
+            return 0
 
     # Process each soft bookmaker
     signals_found = 0
@@ -535,6 +542,10 @@ def process_event(conn, sport: str, event: dict, now_iso: str,
                     bet_limit=soft_bet_limit,
                     captured_at=now_iso,
                 )
+
+                # Skip Betfair edge comparison for incompatible markets
+                if sport in BETFAIR_SKIP_SPORTS:
+                    continue
 
                 # Check for value against Betfair
                 bf = betfair_outcomes.get(name)
@@ -983,7 +994,7 @@ def run_scan():
     for sport in sports:
         # Fetch Betfair API depth for this sport (free, no credit cost)
         bf_sport_data = {}
-        if config.BETFAIR_ENABLED:
+        if config.BETFAIR_ENABLED and sport not in BETFAIR_SKIP_SPORTS:
             try:
                 bf_sport_data = bf_module.get_sport_depths(sport)
                 if bf_sport_data:

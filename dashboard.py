@@ -119,6 +119,23 @@ def pnl_page():
     )
 
 
+@app.route("/news")
+def news_page():
+    with models.get_db() as conn:
+        stats = models.get_article_stats(conn)
+        articles = models.get_recent_articles(conn, limit=50)
+        news_signals = models.get_news_signals_recent(conn, limit=50)
+        news_bets = models.get_news_bets_summary(conn)
+
+    return render_template(
+        "news.html",
+        stats=stats,
+        articles=articles,
+        news_signals=news_signals,
+        news_bets=news_bets,
+    )
+
+
 @app.route("/settle", methods=["POST"])
 def settle_bet():
     """Settle a simulated bet via the web UI."""

@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% set active_tab = "news" %}
+{% block title %}News{% endblock %}
+
+{% block content %}
+<!-- Summary cards -->
+<div class="grid grid-4" style="margin-bottom: 1rem;">
+    <div class="card">
+        <h3>Articles Collected</h3>
+        <div class="stat blue">{{ stats.total_articles or 0 }}</div>
+        <div class="stat-sub">from RSS feeds</div>
+    </div>
+    <div class="card">
+        <h3>Articles Analysed</h3>
+        <div class="stat {% if stats.analysed_articles %}green{% endif %}">
+            {{ stats.analysed_articles or 0 }}
+        </div>
+        <div class="stat-sub">by Gemini</div>
+    </div>
+    <div class="card">
+        <h3>News Signals</h3>
+        <div class="stat yellow">{{ stats.total_news_signals or 0 }}</div>
+        <div class="stat-sub">detected</div>
+    </div>
+    <div class="card">
+        <h3>News Bets</h3>
+        <div class="stat">{{ stats.total_news_bets or 0 }}</div>
+        <div class="stat-sub">{{ stats.open_news_bets or 0 }} open</div>
+    </div>
+</div>
+
+<!-- News Signals -->
+<div class="section-title">News Signals</div>
+{% if news_signals %}
+    {% for ns in news_signals %}
+    <div class="card" style="margin-bottom: 0.75rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+            <div>
+                <span class="badge badge-yellow">{{ ns.signal_type }}</span>
+                <span style="font-weight: 600; margin-left: 0.5rem;">{{ ns.market_name }}</span>
+                <span style="color: var(--text-dim); margin-left: 0.5rem;">{{ ns.detected_at|fmt_time }}</span>
+            </div>
+            <div>
+                {% if ns.edge_pct %}
+                <span class="badge {% if ns.edge_pct >= 0.08 %}badge-green{% else %}badge-yellow{% endif %}" style="font-size: 0.9rem;">
+                    {{ ns.edge_pct|fmt_pct }} edge
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div style="background: var(--surface2); border-radius: 6px; padding: 1rem; font-size: 0.85rem; line-height: 1.6;">
+            <div style="margin-bottom: 0.5rem;">
+                <strong style="color: var(--accent);">Article:</strong>
+                {{ ns.article_title }}
+                <span style="color: var(--text-dim);">({{ ns.feed_source }})</span>
+            </div>
+            <div style="margin-bottom: 0.5rem;">
+                <strong>Runner:</strong> {{ ns.runner_name }}
+                {% if ns.current_back_price %} &bull; Back @ {{ ns.current_back_price|fmt_odds }}{% endif %}
+                {% if ns.current_lay_price %} / Lay @ {{ ns.current_lay_price|fmt_odds }}{% endif %}
+            </div>
+            {% if ns.current_implied_prob and ns.estimated_fair_prob %}
+            <div style="margin-bottom: 0.5rem;">
+                Market implied: {{ ns.current_implied_prob|fmt_pct }}
+                &rarr; Estimated fair: {{ ns.estimated_fair_prob|fmt_pct }}
+            </div>
+            {% endif %}
+            {% if ns.gemini_reasoning %}
+            <div style="border-top: 1px solid var(--border); margin-top: 0.5rem; padding-top: 0.5rem; color: var(--text-dim);">
+                <strong style="color: var(--text);">Reasoning:</strong> {{ ns.gemini_reasoning }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="card">
+    <p style="color: var(--text-dim); text-align: center; padding: 1rem;">
+        No news signals yet. Gemini will generate signals when articles affect Betfair politics markets.
+    </p>
+</div>
+{% endif %}
+
+<!-- News Bets -->
+{% if news_bets %}
+<div class="section-title">News Bets</div>
+    {% for nb in news_bets %}
+    <div class="card" style="margin-bottom: 0.75rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+            <div>
+                <span class="badge badge-blue">{{ nb.side|upper }}</span>
+                <strong style="margin-left: 0.5rem;">{{ nb.market_name }}</strong>
+                <span style="color: var(--text-dim); margin-left: 0.5rem;">#{{ nb.id }}</span>
+            </div>
+            <div>
+                {% if nb.settled %}
+                    {% if nb.result == 'win' %}
+                        <span class="badge badge-green">WON {{ nb.pnl|fmt_money }}</span>
+                    {% elif nb.result == 'loss' %}
+                        <span class="badge badge-red">LOST {{ nb.pnl|fmt_money }}</span>
+                    {% else %}
+                        <span class="badge">{{ nb.result|upper }}</span>
+                    {% endif %}
+                {% else %}
+                    <span class="badge badge-yellow">OPEN</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div style="background: var(--surface2); border-radius: 6px; padding: 1rem; font-size: 0.85rem; line-height: 1.6;">
+            <div style="margin-bottom: 0.5rem;">
+                <strong style="color: var(--accent);">{{ nb.side|capitalize }}:</strong>
+                {{ nb.stake|fmt_money }} on <strong>{{ nb.runner_name }}</strong>
+                @ <strong style="color: var(--green);">{{ nb.odds_at_detection|fmt_odds }}</strong>
+                &rarr; Potential payout {{ nb.potential_payout|fmt_money }}
+            </div>
+            {% if nb.article_title %}
+            <div style="color: var(--text-dim);">
+                Based on: {{ nb.article_title }}
+            </div>
+            {% endif %}
+            {% if nb.gemini_reasoning %}
+            <div style="border-top: 1px solid var(--border); margin-top: 0.5rem; padding-top: 0.5rem; color: var(--text-dim);">
+                {{ nb.gemini_reasoning[:200] }}{% if nb.gemini_reasoning|length > 200 %}...{% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="margin-top: 0.5rem; color: var(--text-dim); font-size: 0.75rem;">
+            Placed {{ nb.placed_at|fmt_time }}
+            {% if nb.signal_type %} &bull; Signal: {{ nb.signal_type }}{% endif %}
+        </div>
+    </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Recent Articles -->
+<div class="section-title">Recent Articles</div>
+<div class="card">
+    {% if articles %}
+    <table>
+        <thead>
+            <tr>
+                <th>Published</th>
+                <th>Source</th>
+                <th>Title</th>
+                <th>Analysed</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in articles %}
+            <tr>
+                <td style="color: var(--text-dim); white-space: nowrap;">{{ a.published_at|fmt_time if a.published_at else a.fetched_at|fmt_time }}</td>
+                <td><span class="badge badge-blue">{{ a.feed_source }}</span></td>
+                <td>
+                    <a href="{{ a.url }}" target="_blank" rel="noopener"
+                       style="color: var(--text); text-decoration: none;">
+                        {{ a.title }}
+                    </a>
+                </td>
+                <td>
+                    {% if a.analysed %}
+                        <span class="badge badge-green">Yes</span>
+                    {% else %}
+                        <span style="color: var(--text-dim);">No</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: var(--text-dim); text-align: center; padding: 1rem;">
+        No articles collected yet. Newsbot RSS poller will populate this.
+    </p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    setTimeout(() => window.location.reload(), 60000);
+</script>
+{% endblock %}

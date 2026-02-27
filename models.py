@@ -568,3 +568,56 @@ def get_credit_history(conn, days: int = 7) -> list[sqlite3.Row]:
            ORDER BY date DESC""",
         (cutoff,),
     ).fetchall()
+
+
+# ---------------------------------------------------------------------------
+# News query helpers (dashboard news tab)
+# ---------------------------------------------------------------------------
+
+def get_recent_articles(conn, limit: int = 50) -> list[sqlite3.Row]:
+    """Most recent articles for dashboard display."""
+    return conn.execute(
+        """SELECT id, url, feed_source, title, summary, published_at,
+                  fetched_at, analysed
+           FROM articles
+           ORDER BY fetched_at DESC
+           LIMIT ?""",
+        (limit,),
+    ).fetchall()
+
+
+def get_article_stats(conn) -> sqlite3.Row:
+    """Summary stats for the news tab header cards."""
+    return conn.execute(
+        """SELECT
+              COUNT(*) as total_articles,
+              SUM(CASE WHEN analysed = 1 THEN 1 ELSE 0 END) as analysed_articles,
+              (SELECT COUNT(*) FROM news_signals) as total_news_signals,
+              (SELECT COUNT(*) FROM news_bets) as total_news_bets,
+              (SELECT COUNT(*) FROM news_bets WHERE settled = 0) as open_news_bets
+           FROM articles"""
+    ).fetchone()
+
+
+def get_news_signals_recent(conn, limit: int = 50) -> list[sqlite3.Row]:
+    """Recent news signals with article info."""
+    return conn.execute(
+        """SELECT ns.*, a.title as article_title, a.feed_source
+           FROM news_signals ns
+           JOIN articles a ON ns.article_id = a.id
+           ORDER BY ns.detected_at DESC
+           LIMIT ?""",
+        (limit,),
+    ).fetchall()
+
+
+def get_news_bets_summary(conn) -> list[sqlite3.Row]:
+    """All news bets with signal and article context."""
+    return conn.execute(
+        """SELECT nb.*, ns.gemini_reasoning, ns.signal_type,
+                  ns.estimated_fair_prob, a.title as article_title
+           FROM news_bets nb
+           JOIN news_signals ns ON nb.signal_id = ns.id
+           JOIN articles a ON ns.article_id = a.id
+           ORDER BY nb.placed_at DESC"""
+    ).fetchall()

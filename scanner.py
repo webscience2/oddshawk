@@ -20,6 +20,24 @@ logger = logging.getLogger("oddshawk.scanner")
 # Credits per Odds API call: 1 if Betfair API handles exchange data, 2 if not
 CREDITS_PER_CALL = 1 if config.BETFAIR_ENABLED else 2
 
+# --- API key rotation ---
+# Round-robin across configured keys. Each scan cycle advances to the next key.
+_key_index = 0
+
+
+def _next_api_key() -> str:
+    """Return the next API key in the rotation and advance the index."""
+    global _key_index
+    key = config.ODDS_API_KEYS[_key_index % len(config.ODDS_API_KEYS)]
+    _key_index += 1
+    return key
+
+
+def _current_api_key() -> str:
+    """Return the current API key without advancing."""
+    return config.ODDS_API_KEYS[_key_index % len(config.ODDS_API_KEYS)]
+
+
 # Sports where The Odds API h2h and Betfair MATCH_ODDS are incompatible.
 # NHL: API returns 3-way regulation (Home/Away/Draw ~82% sum) but Betfair
 # is 2-way money line including OT (~100% sum). Odds snapshots are still
@@ -104,10 +122,11 @@ def _match_bf_depth(home: str, away: str, bf_sport_data: dict) -> dict | None:
 # API helpers
 # ---------------------------------------------------------------------------
 
-def fetch_odds(sport: str) -> tuple[list | None, dict]:
+def fetch_odds(sport: str, api_key: str | None = None) -> tuple[list | None, dict]:
     """
     Fetch odds for a single sport from The Odds API.
     Returns (events_list_or_None, response_headers_dict).
+    Uses the provided api_key, or the current rotation key if None.
     """
     url = f"{config.ODDS_API_BASE}/sports/{sport}/odds"
     # If Betfair API is enabled, we get exchange data from there — only need h2h
@@ -116,8 +135,9 @@ def fetch_odds(sport: str) -> tuple[list | None, dict]:
     bookmakers = (",".join(config.SOFT_BOOKMAKERS)
                   if config.BETFAIR_ENABLED
                   else config.ALL_BOOKMAKERS)
+    key = api_key or _current_api_key()
     params = {
-        "apiKey": config.ODDS_API_KEY,
+        "apiKey": key,
         "regions": "au",
         "markets": markets,
         "includeBetLimits": "true",
@@ -810,15 +830,17 @@ def _settle_via_betfair(unsettled_bets: list) -> list:
     return settled_ids
 
 
-def fetch_scores(sport: str, days_from: int = 3) -> tuple[list | None, dict]:
+def fetch_scores(sport: str, days_from: int = 3, api_key: str | None = None) -> tuple[list | None, dict]:
     """
     Fetch completed scores for a sport from The Odds API.
     Returns (scores_list_or_None, response_headers_dict).
     Costs 2 credits per call.
+    Uses the provided api_key, or the current rotation key if None.
     """
     url = f"{config.ODDS_API_BASE}/sports/{sport}/scores"
+    key = api_key or _current_api_key()
     params = {
-        "apiKey": config.ODDS_API_KEY,
+        "apiKey": key,
         "daysFrom": days_from,
     }
 
@@ -968,12 +990,20 @@ def settle_completed_bets():
 def run_scan():
     """
     Execute one full scan cycle:
-    1. Determine which sports to scan (credit-aware rotation)
-    2. Fetch odds for each sport
-    3. Process events, detect signals, place sim bets
-    4. Update credit tracking
-    5. Log summary
+    1. Rotate API key (round-robin across configured keys)
+    2. Determine which sports to scan (credit-aware rotation)
+    3. Fetch odds for each sport
+    4. Process events, detect signals, place sim bets
+    5. Update credit tracking
+    6. Log summary
     """
+    # Rotate to next API key for this cycle
+    api_key = _next_api_key()
+    key_label = f"{api_key[:4]}...{api_key[-4:]}"
+    logger.info("Scan cycle using API key %s (%d/%d)",
+                key_label, _key_index % len(config.ODDS_API_KEYS) or len(config.ODDS_API_KEYS),
+                len(config.ODDS_API_KEYS))
+
     now_iso = datetime.now(timezone.utc).isoformat()
 
     with models.get_db() as conn:

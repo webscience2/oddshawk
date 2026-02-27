@@ -51,7 +51,7 @@
                     <td>{{ r.runner_name }}</td>
                     <td style="color: var(--green);">{{ r.back_price|fmt_odds if r.back_price else '-' }}</td>
                     <td style="color: var(--red);">{{ r.lay_price|fmt_odds if r.lay_price else '-' }}</td>
-                    <td>{{ "%.0f"|format(r.implied_prob * 100) }}%</td>
+                    <td>{% if r.implied_prob %}{{ "%.0f"|format(r.implied_prob * 100) }}%{% else %}-{% endif %}</td>
                     <td style="color: var(--text-dim);">${{ "%.0f"|format((r.back_liq or 0) + (r.lay_liq or 0)) }}</td>
                 </tr>
                 {% endfor %}
